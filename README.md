@@ -1,5 +1,14 @@
 Sha512 Hex Input
 
+```
+  // https://yihau.github.io/solana-web3-demo/tour/create-keypair.html
+  const mnemonic = "pill tomorrow foster begin walnut borrow virtual kick shift mutual shoe scatter";
+
+  const seed = bip39.mnemonicToSeedSync(mnemonic, ""); // (mnemonic, password)
+  const keypair = Keypair.fromSeed(seed.slice(0, 32));
+  console.log(`${keypair.publicKey.toBase58()}`); // 5ZWj7a1f8tWkjBESHKgrLmXshuXxqeY9SYcfbshpAqPG
+
+```
 https://emn178.github.io/online-tools/sha512.html
 
 ```
