@@ -1,3 +1,18 @@
+Sha512 Hex Input
+
+```
+        string secret = "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb";
+        
+
+        int NumberChars = secret.Length;
+        byte[] bytes = new byte[NumberChars / 2];
+        for (int i = 0; i < NumberChars; i += 2)
+        {
+            bytes[i / 2] = Convert.ToByte(secret.Substring(i, 2), 16);
+        }
+ ```
+
+
 Base Field: 57896044618658097711785492504343953926634992332820282019728792003956564819949
 
 Curve Constant: 37095705934669439343138083508754565189542113879843219016388785533085940283555
