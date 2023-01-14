@@ -2,8 +2,6 @@ Sha512 Hex Input
 
 ```
         string secret = "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb";
-        
-
         int NumberChars = secret.Length;
         byte[] bytes = new byte[NumberChars / 2];
         for (int i = 0; i < NumberChars; i += 2)
