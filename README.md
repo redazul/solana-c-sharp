@@ -54,3 +54,7 @@ G constant: (1511222134953540077250115140958853151145401269304185720604611328394
 PoitMul
 
 PublicKey: 3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c
+
+Notes:
+
+https://stackoverflow.com/questions/18106156/modulo-of-a-number-python-vs-c-sharp
