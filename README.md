@@ -7,6 +7,21 @@ Test Vector
       107, 210, 122, 200, 189, 124, 250, 174, 108, 224, 148,
       227, 102, 236,   5,  17,  19,  43,   0, 251
     ]
+    
+<Buffer 01>
+<Buffer 0d f1 f9 d9 a5 ee bb 4d dd ec 04 d6 24 91 37 b3 7c 21 11 e8 cb b4 21 96 42 9b 20 b2 2a 68 fa b8 06 9a 81 78 43 48 79 23 b0 94 f8 c3 c1 f3 8f 2b 4f 9c ... 14 more bytes>
+<Buffer 01 00 01 03>
+<Buffer 82 09 69 6e 38 5a 2a 50 80 65 fa e4 6b d2 7a c8 bd 7c fa ae 6c e0 94 e3 66 ec 05 11 13 2b 00 fb>
+<Buffer 9b 88 a9 04 c8 5b a6 aa 4c 07 a1 79 fb e9 11 c7 cf 68 8e 21 62 8c bf ea 24 0e 12 43 27 cb 65 50>
+<Buffer 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00>
+<Buffer 2e 1d e5 54 45 73 9b 60 c2 0f 6f be 00 c4 b5 0d 0d 7b 81 0c dc 83 ee d1 67 93 13 9b 4d e5 c6 62>
+<Buffer 01>
+<Buffer 02>
+<Buffer 02>
+<Buffer 00>
+<Buffer 01>
+<Buffer 0c>
+<Buffer 02 00 00 00 e8 03 00 00 00 00 00 00>
 
 
 Web3JS Reference
