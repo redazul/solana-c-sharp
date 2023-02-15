@@ -6,12 +6,13 @@ using System;
 using System.Text;
 using System.Numerics;
 using System.Globalization;
-
+using System.Linq;
 
 public class Wallet : MonoBehaviour
 {
 
-    bool testRFC = false;
+
+    BigInteger q = BigInteger.Pow(2, 252) + BigInteger.Parse("27742317777372353535851937790883648493");
 
     BigInteger p = BigInteger.Parse("57896044618658097711785492504343953926634992332820282019728792003956564819949");
     BigInteger d = BigInteger.Parse("37095705934669439343138083508754565189542113879843219016388785533085940283555");
@@ -23,13 +24,13 @@ public class Wallet : MonoBehaviour
         BigInteger.Parse("46827403850823179245072216630277197565144205554125654976674165829533817101731")
     };
 
-    BigInteger[] point_add(BigInteger[] P,BigInteger[] Q)
+    BigInteger[] point_add(BigInteger[] P, BigInteger[] Q)
     {
-        BigInteger A = (((P[1] - P[0]) * (Q[1] - Q[0]) % p)+p)%p;
-        BigInteger B = (((P[1] + P[0]) * (Q[1] + Q[0]) % p)+p)%p;
+        BigInteger A = (((P[1] - P[0]) * (Q[1] - Q[0]) % p) + p) % p;
+        BigInteger B = (((P[1] + P[0]) * (Q[1] + Q[0]) % p) + p) % p;
 
-        BigInteger C = ((2 * P[3] * Q[3] * d % p)+p)%p;
-        BigInteger D = ((2 * P[2] * Q[2] % p)+p)%p;
+        BigInteger C = ((2 * P[3] * Q[3] * d % p) + p) % p;
+        BigInteger D = ((2 * P[2] * Q[2] % p) + p) % p;
 
         BigInteger E = B - A;
         BigInteger F = D - C;
@@ -37,9 +38,9 @@ public class Wallet : MonoBehaviour
         BigInteger H = B + A;
 
 
-        BigInteger[] bByte = {E*F,G*H,F*G,E*H};
+        BigInteger[] bByte = { E * F, G * H, F * G, E * H };
 
- 
+
         return bByte;
     }
 
@@ -48,17 +49,17 @@ public class Wallet : MonoBehaviour
 
         BigInteger[] Q = { BigInteger.Parse("0"), BigInteger.Parse("1"), BigInteger.Parse("1"), BigInteger.Parse("0") };
 
-     
+
         while (s > 0)
         {
-            
+
             if ((s & 1) == 1)
             {
                 Q = point_add(Q, P);
             }
 
             P = point_add(P, P);
-            
+
             s >>= 1;
 
         }
@@ -67,69 +68,75 @@ public class Wallet : MonoBehaviour
 
     }
 
-    string point_compress(BigInteger[] P)
+    byte[] point_compress(BigInteger[] P)
     {
 
         BigInteger zinv = BigInteger.ModPow(P[2], p - 2, p);
-        BigInteger x = ((P[0] * zinv % p)+p)%p;
-        BigInteger y = ((P[1] * zinv % p)+p)%p;
-
-        Debug.Log( (y | ((x & 1) << 255)).ToByteArray());
-
-        Debug.Log((x & 1));
-        Debug.Log((x & 1) << 255);
-
-
-        string byte_rowX = "";
-        string byte_rowY = "";
-        foreach (byte b in x.ToByteArray())
-        {
-                byte_rowX += "," + (b).ToString();
-        }
-
-        foreach (byte b in y.ToByteArray())
-        {
-            byte_rowY += "," + (b).ToString();
-        }
-
-
-        Debug.Log(byte_rowX);
-        Debug.Log(byte_rowY);
-
-
-        string byte_row4 = "";
-        Debug.Log("PubKey");
-
+        BigInteger x = ((P[0] * zinv % p) + p) % p;
+        BigInteger y = ((P[1] * zinv % p) + p) % p;
 
         byte[] publickKey = (y | ((x & 1) << 255)).ToByteArray();
 
+        return publickKey;
+       
+    }
 
-        byte[] truncArray = new byte[32];
+    string expand_sk_a(byte[] sK)
+    {
 
-        Array.Copy(publickKey, truncArray, truncArray.Length);
+        //ed25519 sequence
+        byte[] hash;
+        SHA512 shaM = new SHA512Managed();
+        hash = shaM.ComputeHash(sK);
 
-        foreach (byte b in truncArray)
+
+        Debug.Log("SHA-512 of Secret is: " + BitConverter.ToString(hash).Replace("-", ""));
+
+
+        hash[0] = (byte)(hash[0] & 0xF8);
+        hash[31] = (byte)(hash[31] & 0x7F);
+        hash[31] = (byte)(hash[31] | 0x40);
+        byte[] tempRes = new byte[32];
+
+        for (int i = 0; i < 32; i++)
         {
-            //RFC test vector
-            byte_row4 += "," + (b).ToString();
-
-            //if(firstByte)
-            //{
-            //    //solana set
-            //    byte_row4 += "," + (b).ToString();
-            //    //byte_row4 += ((b & 0xF8)).ToString();
-            //    firstByte = false;
-            //}
-            //else
-            //{
-            //    byte_row4 += "," + (b).ToString();
-            //}
-            
+            tempRes[i] = hash[i];
         }
 
-        Debug.Log(byte_row4);
+        hash = tempRes;
 
-        //base58 encoding
+
+        //little endian 
+        Array.Reverse(hash);
+
+        string hexString = BitConverter.ToString(hash).Replace("-", "");
+
+        //a part of sK expand
+        Debug.Log("Secret Scalar: " + BigInteger.Parse(hexString, NumberStyles.AllowHexSpecifier));
+
+
+        return hexString;
+
+
+
+    }
+
+    byte[] expand_sk_prefix(byte[] sK)
+    {
+        //ed25519 sequence
+        byte[] hash;
+        SHA512 shaM = new SHA512Managed();
+        hash = shaM.ComputeHash(sK);
+
+        byte[] subarray = hash.Skip(32).ToArray();
+        return subarray;
+    }
+
+    //base58 encoding
+    string base_58_encoding(byte[] publicKey)
+    {
+        byte[] truncArray = new byte[32];
+        Array.Copy(publicKey, truncArray, truncArray.Length);
 
         BigInteger Base58Divisor = 58;
 
@@ -167,138 +174,71 @@ public class Wallet : MonoBehaviour
 
     }
 
+    BigInteger Sha512Modq(byte[] s)
+    {
+
+        SHA512 shaM = new SHA512Managed();
+        byte[] hash = shaM.ComputeHash(s);
+
+        Debug.Log("********SHA TIME*************");
+        Debug.Log("Secret");
+        Debug.Log(BitConverter.ToString(s).Replace("-", ""));
+        Debug.Log("HASH");
+        Debug.Log(BitConverter.ToString(hash).Replace("-", ""));
+
+
+        byte[] unsignedBytes = new byte[hash.Length + 1]; // add an extra byte
+        hash.CopyTo(unsignedBytes, 0); // copy the original bytes
+        BigInteger unsignedBigInt = new BigInteger(unsignedBytes);
+
+        Debug.Log(unsignedBigInt);
+        Debug.Log(unsignedBigInt % q);
+
+        return unsignedBigInt % q;
+    }
+
+
+
+    byte[] sign_msg(byte[] sK, byte[] msg)
+    {
+
+        string hexString = expand_sk_a(sK);
+        BigInteger sNum = BigInteger.Parse(hexString, NumberStyles.AllowHexSpecifier);
+        BigInteger[] Q = point_mul(sNum, G);
+        byte[] A = point_compress(point_mul(sNum, G));
+
+        byte[] prefix = expand_sk_prefix(sK);
+
+        BigInteger r = Sha512Modq(prefix.Concat(msg).ToArray());
+
+        BigInteger[] R = point_mul(r, G);
+        byte[] Rs = point_compress(R);
+        
+        BigInteger h = Sha512Modq(Rs.Take(32).Concat(A).Concat(msg).ToArray());
+        BigInteger s = (r + h * sNum) % q;
+
+        byte[] bytes = s.ToByteArray();
+
+        return Rs.Take(32).Concat(bytes).ToArray();
+
+    }
+
+
 
     public string GetPublicKey(string mnemonic_string)
     {
 
-        //string secret = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60";
+        //rfc test vector
+        //string secret = "c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7";
 
-        string secret = "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb";
+        string secret = "EA1622C08C673538021A4CD547033162A0C52C2168FCABC3D1BE0914B0F6DB35";
 
+        byte[] sK = Enumerable.Range(0, secret.Length)
+                         .Where(x => x % 2 == 0)
+                         .Select(x => Convert.ToByte(secret.Substring(x, 2), 16))
+                         .ToArray();
 
-        // Start web3j example
-        //mnemonic_string = "dutch steel mandate learn witness grab library achieve base mother resource scissors";
-        
-
-
-
-        string byte_row = "";
-
-        byte[] bytesw = Encoding.ASCII.GetBytes(mnemonic_string);
-        foreach (byte b in bytesw)
-        {
-            byte_row += "," + (b).ToString();
-        }
-
-        //Debug.Log(byte_row);
-
-        string password = "";
-        string salt = "mnemonic" + password;
-
-
-        string byte_row2 = "";
-        byte[] bytes2 = Encoding.ASCII.GetBytes(salt);
-        foreach (byte b in bytes2)
-        {
-            byte_row2 += "," + (b).ToString();
-        }
-
-        //Debug.Log(byte_row2);
-
-
-        Rfc2898DeriveBytes k1 = new Rfc2898DeriveBytes(bytesw, bytes2, 2048, HashAlgorithmName.SHA512);
-
-
-        byte[] bytes3 = k1.GetBytes(32);
-        string byte_row3 = "";
-        foreach (byte b in bytes3)
-        {
-            byte_row3 += "," + (b).ToString();
-        }
-
-        //Debug.Log("SecretKey");
-        //Debug.Log(byte_row3);
-
-        //end web3js example
-
-
-
-        int NumberChars = secret.Length;
-        byte[] bytes = new byte[NumberChars / 2];
-
-        if (testRFC)
-        {
-
-            for (int i = 0; i < NumberChars; i += 2)
-            {
-                bytes[i / 2] = Convert.ToByte(secret.Substring(i, 2), 16);
-            }
-
-
-        }
-        else
-        {
-            bytes = bytes3;
-        }
-
-
-
-
-
-
-        //ed25519 sequence
-        byte[] result;
-        SHA512 shaM = new SHA512Managed();
-        result = shaM.ComputeHash(bytes);
-        //Debug.Log(result);
-        string byte_row4 = "";
-
-        foreach (byte b in result)
-        {
-            byte_row4 += "," + (b).ToString("X");
-        }
-
-        Debug.Log("SHA-512 of Secret is: " + byte_row4);
-
-
-        result[0] = (byte)(result[0] & 0xF8);
-        result[31] = (byte)(result[31] & 0x7F);
-        result[31] = (byte)(result[31] | 0x40);
-        byte[] tempRes = new byte[32];
-
-        for (int i = 0; i < 32; i++)
-        {
-            tempRes[i] = result[i];
-        }
-
-        result = tempRes;
-
-        byte_row4 = "";
-        foreach (byte b in result)
-        {
-            byte_row4 += "," + (b).ToString();
-        }
-
-        //Debug.Log("After Setting Bits");
-        //Debug.Log(byte_row4);
-        byte_row4 = "";
-
-        //little endian 
-        Array.Reverse(result);
-
-        foreach (byte b in result)
-        {
-            byte_row4 += "," + (b).ToString();
-        }
-
-        //Debug.Log("After Reversing");
-        //Debug.Log(byte_row4);
-
-        string hexString = BitConverter.ToString(result).Replace("-", "");
-        //Debug.Log("hex result");
-        //Debug.Log(hexString);
-
-        Debug.Log("Secret Scalar: " + BigInteger.Parse(hexString, NumberStyles.AllowHexSpecifier));
+        string hexString = expand_sk_a(sK);
 
 
         BigInteger sNum = BigInteger.Parse(hexString, NumberStyles.AllowHexSpecifier);
@@ -306,41 +246,69 @@ public class Wallet : MonoBehaviour
 
         BigInteger[] Q = point_mul(sNum, G);
 
-        Debug.Log(Q[0]);
-        Debug.Log(Q[1]);
-        Debug.Log(Q[2]);
-        Debug.Log(Q[3]);
 
-        Debug.Log("PublicKey");
-        Debug.Log(point_compress(point_mul(sNum, G)));
+        byte[] publicKey = point_compress(point_mul(sNum, G));
 
 
-
-        return point_compress(point_mul(sNum, G));
-
-
-        //string sBin = "";
-        //int first = 0;
-        //foreach (char c in hexString)
-        //{
-        //    //Debug.Log(Convert.ToString(Convert.ToInt32(c.ToString(), 16), 2).PadLeft(4, '0'));
-
-        //    if (first == 0){
-        //        sBin = sBin + Convert.ToString(Convert.ToInt32(c.ToString(), 16), 2);
-        //        first++;
-        //    }
-        //    else
-        //    {
-        //        sBin = sBin + Convert.ToString(Convert.ToInt32(c.ToString(), 16), 2).PadLeft(4, '0');
-        //    }
+        hexString = BitConverter.ToString(publicKey).Replace("-", "");
 
 
-        //}
+        Debug.Log("ed25519 PubKey: "+hexString);
 
-        //Debug.Log(sBin);
+
+        Debug.Log("Solana PubKey: "+base_58_encoding(publicKey));
 
 
 
+        byte[] msg1 = { 0x01, 0x00, 0x01, 0x03 };
+
+        //from pubkey
+        byte[] msg2 = { 0x82, 0x09, 0x69, 0x6e, 0x38, 0x5a, 0x2a, 0x50, 0x80, 0x65, 0xfa, 0xe4, 0x6b,
+                        0xd2, 0x7a, 0xc8, 0xbd, 0x7c, 0xfa, 0xae, 0x6c, 0xe0, 0x94, 0xe3, 0x66, 0xec,
+                        0x05, 0x11, 0x13, 0x2b, 0x00, 0xfb };
+        //to pubkey
+        byte[] msg3 = { 0x9b, 0x88, 0xa9, 0x04, 0xc8, 0x5b, 0xa6, 0xaa, 0x4c, 0x07, 0xa1, 0x79, 0xfb,
+                        0xe9, 0x11, 0xc7, 0xcf, 0x68, 0x8e, 0x21, 0x62, 0x8c, 0xbf, 0xea, 0x24, 0x0e,
+                        0x12, 0x43, 0x27, 0xcb, 0x65, 0x50 };
+
+        //solana system programID
+        byte[] msg4 = new byte[32];
+
+        //recent block hash
+        byte[] msg5 = { 0x3e, 0xd8, 0x93, 0x98, 0x01, 0x2f, 0x67, 0x06, 0x5f, 0xd5, 0xe6, 0x7f, 0xcc,
+                        0x77, 0x6f, 0x19, 0x5a, 0xfd, 0x52, 0x12, 0x07, 0x53, 0x47, 0x07, 0xfa, 0x4f,
+                        0xcd, 0x09, 0x3c, 0x29, 0x29, 0x06};
+
+        byte[] msg6 = { 0x01, 0x02, 0x02, 0x00, 0x01, 0x0c };
+
+        byte[] msg7 = { 0x02, 0x00, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+
+
+        byte[] msg = msg1
+            .Concat(msg2)
+            .Concat(msg3)
+            .Concat(msg4)
+            .Concat(msg5)
+            .Concat(msg6)
+            .Concat(msg7)
+            .ToArray();
+
+        Debug.Log("msg: " + BitConverter.ToString(msg).Replace("-", ""));
+
+        byte[] signature = sign_msg(sK, msg);
+        Debug.Log("Signature: " + BitConverter.ToString(signature).Replace("-", ""));
+
+        byte[] msgPreFix = { 0x01 };
+
+        string rawTransaction = Convert.ToBase64String(msgPreFix.Concat(signature).Concat(msg).ToArray());
+
+
+        Debug.Log(rawTransaction);
+
+
+
+        return "";
 
 
     }
@@ -350,14 +318,14 @@ public class Wallet : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
 
+        GetPublicKey("test");
 
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+
     }
 }
