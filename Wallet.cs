@@ -14,8 +14,8 @@ public class Wallet : MonoBehaviour
 
     BigInteger q = BigInteger.Pow(2, 252) + BigInteger.Parse("27742317777372353535851937790883648493");
 
-    BigInteger p = BigInteger.Parse("57896044618658097711785492504343953926634992332820282019728792003956564819949");
-    BigInteger d = BigInteger.Parse("37095705934669439343138083508754565189542113879843219016388785533085940283555");
+    static BigInteger p = BigInteger.Parse("57896044618658097711785492504343953926634992332820282019728792003956564819949");
+    static BigInteger d = BigInteger.Parse("37095705934669439343138083508754565189542113879843219016388785533085940283555");
 
     BigInteger[] G = {
         BigInteger.Parse("15112221349535400772501151409588531511454012693041857206046113283949847762202"),
@@ -315,11 +315,135 @@ public class Wallet : MonoBehaviour
 
 
 
+
+    // Define the coefficient a of the elliptic curve equation
+    static readonly BigInteger a = 486662;
+
+    // Define the coefficient b of the elliptic curve equation
+    static readonly BigInteger b = 1;
+
+    // Compute the modular inverse of x modulo p
+    static BigInteger modp_inv(BigInteger x)
+    {
+        return BigInteger.ModPow(x, p - 2, p);
+    }
+
+    // Compute the square root of -1 modulo p
+    static readonly BigInteger modp_sqrt_m1 = BigInteger.ModPow(2, (p - 1) / 4, p);
+
+    // Compute corresponding x-coordinate, with low bit corresponding to
+    // sign, or return null on failure
+    static BigInteger? RecoverX(BigInteger y, int sign)
+    {
+        if (y >= p)
+        {
+            return null;
+        }
+
+        BigInteger x2 = (y * y - 1) * modp_inv(d * y * y + 1);
+        
+
+        if (x2 == 0)
+        {
+            if (sign == 1)
+            {
+                return null;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        // Compute square root of x2
+        BigInteger x = BigInteger.ModPow(x2, (p + 3) / 8, p);
+
+     
+        if ((x * x - x2) % p != 0)
+        {
+            x = (x * modp_sqrt_m1) % p;
+        }
+
+        if ((x * x - x2) % p != 0)
+        {
+            return null;
+        }
+
+        if ((x & 1) != sign)
+        {
+            x = p - x;
+        }
+
+        return x;
+    }
+
+    // Decompress a compressed point (y, sign) and return the corresponding
+    // uncompressed point (x, y, 1, x*y % p)
+    static Tuple<BigInteger, BigInteger, BigInteger, BigInteger> PointDecompress(byte[] s)
+    {
+        if (s.Length != 32)
+        {
+            throw new ArgumentException("Invalid input length for decompression");
+        }
+
+        BigInteger y = new BigInteger(s);
+
+
+        BigInteger sign = y >> 255;
+        y &= (BigInteger.Pow(2, 255) - 1);
+
+   
+
+        BigInteger? x = RecoverX(y, (int)sign);
+        if (x == null)
+        {
+            return null;
+        }
+
+        return new Tuple<BigInteger, BigInteger, BigInteger, BigInteger>(
+            x.Value, y, BigInteger.One, (x.Value * y) % p);
+    }
+
     // Start is called before the first frame update
     void Start()
     {
 
         GetPublicKey("test");
+
+
+
+        // Example compressed point as a byte string
+        string publicKeyHex = "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c";
+
+        byte[] pK = Enumerable.Range(0, publicKeyHex.Length)
+                 .Where(x => x % 2 == 0)
+                 .Select(x => Convert.ToByte(publicKeyHex.Substring(x, 2), 16))
+                 .ToArray();
+
+        Debug.Log(PointDecompress(pK));
+
+
+        // Example compressed point as a byte string
+        publicKeyHex = "5bf554dd9dbe0991b082192b486bbee54b58bf8807a76d5baaa4ba0f8e240c17";
+
+        pK = Enumerable.Range(0, publicKeyHex.Length)
+                 .Where(x => x % 2 == 0)
+                 .Select(x => Convert.ToByte(publicKeyHex.Substring(x, 2), 16))
+                 .ToArray();
+
+        Debug.Log(PointDecompress(pK));
+
+        // Example compressed point as a byte string
+        publicKeyHex = "c8e572c0390bd4edb2fdff3fa6cd5b8758ed1176b0ced598b243b235a05a3b85";
+
+        pK = Enumerable.Range(0, publicKeyHex.Length)
+                 .Where(x => x % 2 == 0)
+                 .Select(x => Convert.ToByte(publicKeyHex.Substring(x, 2), 16))
+                 .ToArray();
+
+        Debug.Log(PointDecompress(pK));
+
+
 
     }
 
